@@ -71,27 +71,48 @@ let laps = 0;
 let previousAngle = Math.atan2(camera.position.z / outerRZ, camera.position.x / outerRX);
 
 let audioStarted = false;
-let audioCtx, oscillator, gainNode;
+let audioCtx, oscillator, oscillator2, filter, gainNode;
 
 function startAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   oscillator = audioCtx.createOscillator();
+  oscillator2 = audioCtx.createOscillator();
+  filter = audioCtx.createBiquadFilter();
   gainNode = audioCtx.createGain();
+
   oscillator.type = 'sawtooth';
-  oscillator.connect(gainNode);
+  oscillator2.type = 'square';
+  filter.type = 'lowpass';
+  filter.frequency.value = 1000;
+
+  oscillator.connect(filter);
+  oscillator2.connect(filter);
+  filter.connect(gainNode);
   gainNode.connect(audioCtx.destination);
+
   gainNode.gain.value = 0.3;
   oscillator.start();
+  oscillator2.start();
 }
 
 // Controls
-let speed = 0;
-const maxSpeed = 40;
-const accel = 20;
-const brake = 30;
-const friction = 10;
+let speed = 0; // meters per second
 const turnSpeed = 1.5; // radians per second
 const keys = {};
+
+// Advanced vehicle physics parameters
+const mass = 1200; // kg
+const wheelRadius = 0.34; // meters
+const engineForce = 9000; // N at full throttle
+const brakeForce = 15000; // N
+const dragCoeff = 0.4257; // N/(m/s)^2
+const rollingResistance = 12.8; // N/(m/s)
+const gearRatios = [3.166, 1.882, 1.296, 0.972, 0.738];
+const finalDrive = 3.42;
+const idleRpm = 800;
+const maxRpm = 7000;
+let gear = 1;
+let rpm = idleRpm;
 
 window.addEventListener('resize', onWindowResize);
 document.addEventListener('keydown', (e) => {
@@ -112,32 +133,38 @@ function onWindowResize() {
 }
 
 function update(delta) {
-  if (keys['w'] || keys['arrowup']) {
-    speed += accel * delta;
-  }
-  if (keys['s'] || keys['arrowdown']) {
-    speed -= brake * delta;
-  }
-  if (keys['a'] || keys['arrowleft']) {
-    camera.rotation.y += turnSpeed * delta;
-  }
-  if (keys['d'] || keys['arrowright']) {
-    camera.rotation.y -= turnSpeed * delta;
-  }
+  const throttle = keys['w'] || keys['arrowup'] ? 1 : 0;
+  const brakeInput = keys['s'] || keys['arrowdown'] ? 1 : 0;
+  let steer = 0;
+  if (keys['a'] || keys['arrowleft']) steer += 1;
+  if (keys['d'] || keys['arrowright']) steer -= 1;
 
-  if (!keys['w'] && !keys['arrowup'] && !keys['s'] && !keys['arrowdown']) {
-    if (speed > 0) speed = Math.max(speed - friction * delta, 0);
-    else if (speed < 0) speed = Math.min(speed + friction * delta, 0);
-  }
+  const drive = throttle * engineForce;
+  const drag = dragCoeff * speed * speed * Math.sign(speed);
+  const rolling = rollingResistance * speed;
+  const braking = brakeInput * brakeForce * Math.sign(speed);
 
-  speed = Math.max(Math.min(speed, maxSpeed), -maxSpeed);
+  const netForce = drive - drag - rolling - braking;
+  const acceleration = netForce / mass;
+  speed += acceleration * delta;
+  if (Math.abs(speed) < 0.01 && throttle === 0 && brakeInput === 0) speed = 0;
 
+  camera.rotation.y += steer * turnSpeed * delta * Math.min(Math.abs(speed) / 5 + 1, 2);
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   camera.position.add(forward.multiplyScalar(speed * delta));
 
+  const wheelRpm = (Math.abs(speed) / (2 * Math.PI * wheelRadius)) * 60;
+  rpm = Math.max(idleRpm, Math.min(wheelRpm * gearRatios[gear - 1] * finalDrive, maxRpm));
+
+  if (rpm > 6500 && gear < gearRatios.length) gear++;
+  else if (rpm < 2500 && gear > 1) gear--;
+
   if (audioStarted && oscillator) {
-    oscillator.frequency.value = 200 + Math.abs(speed) * 10;
-    gainNode.gain.value = 0.2 + Math.abs(speed) / maxSpeed * 0.3;
+    const freq = (rpm / 60) * 4;
+    oscillator.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
+    oscillator2.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
+    filter.frequency.setTargetAtTime(1000 + throttle * 4000, audioCtx.currentTime, 0.05);
+    gainNode.gain.setTargetAtTime(0.2 + throttle * 0.5, audioCtx.currentTime, 0.05);
   }
 
   const angle = Math.atan2(camera.position.z / outerRZ, camera.position.x / outerRX);
@@ -147,7 +174,7 @@ function update(delta) {
   previousAngle = angle;
 
   const hud = document.getElementById('hud');
-  if (hud) hud.innerText = `Speed: ${speed.toFixed(1)} | Laps: ${laps}`;
+  if (hud) hud.innerText = `Speed: ${(speed * 3.6).toFixed(1)} km/h | Gear: ${gear} | Laps: ${laps}`;
 }
 
 function animate() {

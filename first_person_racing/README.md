@@ -1,6 +1,6 @@
 # First Person Racing Game
 
-This project contains a simple first‑person racing game built with [Three.js](https://threejs.org/). The track is now a closed loop inspired by Formula 1 circuits and includes basic engine sounds.
+This project contains a simple first‑person racing game built with [Three.js](https://threejs.org/). The track is now a closed loop inspired by Formula 1 circuits and features improved engine audio as well as more realistic driving physics.
 
 ## Requirements
 
@@ -28,4 +28,4 @@ This project contains a simple first‑person racing game built with [Three.js](
 - **A** or **Left Arrow** – Steer left
 - **D** or **Right Arrow** – Steer right
 
-The HUD in the top‑left corner displays your current speed and completed lap count. Audio will start once you press any control key.
+The HUD in the top‑left corner displays your speed in km/h, the current gear and completed lap count. Audio will start once you press any control key.
