@@ -1,6 +1,7 @@
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const modeEl = document.getElementById('mode');
+const resetEl = document.getElementById('reset');
 
 const playerMarks = { X: [], O: [] }; // store positions for each player
 let currentPlayer = 'X';
@@ -74,4 +75,5 @@ function aiMove() {
 }
 
 modeEl.addEventListener('change', resetGame);
+resetEl.addEventListener('click', resetGame);
 document.addEventListener('DOMContentLoaded', initBoard);
