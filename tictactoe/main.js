@@ -65,13 +65,94 @@ function handleMove(index) {
   }
 }
 
+// ---------- Improved AI using depth-limited minimax ----------
+
+// helper to check win on an arbitrary board array
+function boardWin(board, player) {
+  return winningCombos.some(c => c.every(i => board[i] === player));
+}
+
+function emptyIndices(board) {
+  const res = [];
+  for (let i = 0; i < board.length; i++) {
+    if (!board[i]) res.push(i);
+  }
+  return res;
+}
+
+function cloneState(state) {
+  return {
+    board: state.board.slice(),
+    marks: { X: state.marks.X.slice(), O: state.marks.O.slice() }
+  };
+}
+
+function applyMove(state, player, index) {
+  state.board[index] = player;
+  state.marks[player].push(index);
+  if (state.marks[player].length > 3) {
+    const old = state.marks[player].shift();
+    state.board[old] = '';
+  }
+}
+
+function evaluate(state, depth) {
+  if (boardWin(state.board, 'O')) return 10 - depth;
+  if (boardWin(state.board, 'X')) return depth - 10;
+  return 0;
+}
+
+function minimax(state, depth, maximizing, alpha, beta) {
+  const score = evaluate(state, depth);
+  if (score !== 0 || depth === 0) return score;
+
+  const moves = emptyIndices(state.board);
+  if (moves.length === 0) return 0;
+
+  if (maximizing) { // AI's turn (O)
+    let best = -Infinity;
+    for (const idx of moves) {
+      const newState = cloneState(state);
+      applyMove(newState, 'O', idx);
+      best = Math.max(best, minimax(newState, depth - 1, false, alpha, beta));
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else { // opponent's turn (X)
+    let best = Infinity;
+    for (const idx of moves) {
+      const newState = cloneState(state);
+      applyMove(newState, 'X', idx);
+      best = Math.min(best, minimax(newState, depth - 1, true, alpha, beta));
+      beta = Math.min(beta, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
 function aiMove() {
-  const emptyIndices = Array.from(boardEl.children)
-    .map((c, i) => c.textContent ? null : i)
-    .filter(i => i !== null);
-  if (emptyIndices.length === 0) return;
-  const choice = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-  handleMove(choice);
+  const state = {
+    board: Array.from(boardEl.children).map(c => c.textContent),
+    marks: { X: playerMarks.X.slice(), O: playerMarks.O.slice() }
+  };
+
+  let bestScore = -Infinity;
+  let bestMove = null;
+  const depth = 5; // search depth
+
+  for (const idx of emptyIndices(state.board)) {
+    const newState = cloneState(state);
+    applyMove(newState, 'O', idx);
+    const score = minimax(newState, depth - 1, false, -Infinity, Infinity);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = idx;
+    }
+  }
+
+  if (bestMove !== null) handleMove(bestMove);
 }
 
 modeEl.addEventListener('change', resetGame);
