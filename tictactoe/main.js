@@ -109,7 +109,11 @@ function evaluate(state, depth) {
 
 function minimax(state, depth, maximizing, alpha, beta) {
   const score = evaluate(state, depth);
-  if (score !== 0 || depth === 0) return score;
+  // stop if we reached a terminal state or have exhausted the
+  // allowed search depth. "depth" can become negative when the
+  // search goes deeper than the initial limit due to the sliding
+  // nature of the game, so check for <= 0 rather than strict 0.
+  if (score !== 0 || depth <= 0) return score;
 
   const moves = emptyIndices(state.board);
   if (moves.length === 0) return 0;
