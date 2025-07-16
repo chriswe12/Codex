@@ -2,9 +2,11 @@ const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const modeEl = document.getElementById('mode');
 const resetEl = document.getElementById('reset');
+const firstEl = document.getElementById('first');
 
 const playerMarks = { X: [], O: [] }; // store positions for each player
-let currentPlayer = 'X';
+let firstPlayer = 'X';
+let currentPlayer = firstPlayer;
 let gameOver = false;
 
 const winningCombos = [
@@ -28,10 +30,13 @@ function initBoard() {
 function resetGame() {
   playerMarks.X = [];
   playerMarks.O = [];
-  currentPlayer = 'X';
+  currentPlayer = firstPlayer;
   gameOver = false;
   Array.from(boardEl.children).forEach(c => c.textContent = '');
   statusEl.textContent = `Current Player: ${currentPlayer}`;
+  if (modeEl.value === 'ai' && currentPlayer === 'O') {
+    aiMove();
+  }
 }
 
 function placeMark(player, index) {
@@ -140,7 +145,7 @@ function aiMove() {
 
   let bestScore = -Infinity;
   let bestMove = null;
-  const depth = 5; // search depth
+  const depth = 20; // search depth
 
   for (const idx of emptyIndices(state.board)) {
     const newState = cloneState(state);
@@ -157,4 +162,9 @@ function aiMove() {
 
 modeEl.addEventListener('change', resetGame);
 resetEl.addEventListener('click', resetGame);
+firstEl.addEventListener('click', () => {
+  firstPlayer = firstPlayer === 'X' ? 'O' : 'X';
+  firstEl.textContent = `First Player: ${firstPlayer}`;
+  resetGame();
+});
 document.addEventListener('DOMContentLoaded', initBoard);
